@@ -1,1 +1,1 @@
-# qs-vir
+This repository contains the scripts necessary to calibrate and image VLA observations of QS Vir along with scripts to recreate the plots in [insert paper here]. The data can be obtained from nrao.archive.edu.
