@@ -9,7 +9,7 @@ try:
     hifv_hanning(pipelinemode="automatic")
     hifv_flagdata(hm_tbuff='1.5int', fracspw=0.01, intents='*POINTING*,*FOCUS*,\
                   *ATMOSPHERE*,*SIDEBAND_RATIO*, *UNKNOWN*, *SYSTEM_CONFIGURATION*,\
-                  *UNSPECIFIED#UNSPECIFIED*', template=True, filetemplate='flags_nov.txt')
+                  *UNSPECIFIED#UNSPECIFIED*', template=True, filetemplate='flags_nov.txt') # This flag file includes spws, antennas, etc. from manual inspection.
     hifv_vlasetjy(pipelinemode="automatic")
     hifv_priorcals(pipelinemode="automatic")
     hifv_syspower(pipelinemode="automatic")
