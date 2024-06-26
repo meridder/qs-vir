@@ -1,18 +1,24 @@
 #!/bin/bash
 #SBATCH --time=6:00:00
-#SBATCH --account=def-heinke
+#SBATCH --account=your_account
 #SBATCH --mem=65G
 #SBATCH --cpus-per-task=16
-#SBATCH --output=polkat_250624_%j
-#SBATCH --mail-user=mridder@ualberta.ca
+#SBATCH --output=job_output_name
+#SBATCH --mail-user=your_email@domain
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
 
-# Will be running  on data calibrated data with new version of CASA. FIRST: old data needs to be saved. Creating MFS images with 16 channels in S band and 32 channels in C/X band.
+# This is a script designed to work on a slurm cluster (e.g. Graham/Cedar of the Digital Research Alliance of Canada). 
+# You will need a container or multiple containers with WSClean, CubiCal, and breizorro installed in order to use it 
+# on another cluster. Otherwise, make sure to install CASA, WSClean, CubiCal, and breizorro and edit the lines that 
+# include "apptainer exec" to begin with only the appropriate function.
+# If you want to use containers on a cluster, make sure to edit the path to CASA and the path to the container(s) below
+# as well as edit the bash preamble above to include your account, email, etc. I've found the memory and cpu requirements
+# already above to be sufficient to image all the frequency bands in a few hours.
 
 echo "'''"
-cat imaging.sh
+cat imaging-nov.sh
 echo "'''"
 
 echo 'Loading modules...'
@@ -38,10 +44,10 @@ for msfile in ../ms_files/*.ms;do
     # Determine what cell sizes to use
     # S Band
     if [[ "$msfile" == *"_S"* ]]; then
-        channels=16
+        channels=16 # set to the number of spectral windows in each band
         imsize=2480
-        cellsize='0.97arcsec'
-        subbands=('0~7') # only first half for self cal
+        cellsize='0.97arcsec' # pixel sizes are set at the beam minor axis/5
+        subbands=('0~7') # used by CubiCal
         freqint="512"
     fi
     
@@ -50,7 +56,7 @@ for msfile in ../ms_files/*.ms;do
         channels=32
         imsize=5000
         cellsize='0.48arcsec'
-        #subbands=('0~7' '8~15' '16~23' '24~31')
+        #subbands=('0~7' '8~15' '16~23' '24~31') 
         freqint="512"
     fi
     
@@ -59,37 +65,43 @@ for msfile in ../ms_files/*.ms;do
         channels=32
         imsize=6000
         cellsize='0.32arcsec'
-        #subbands=('0~15' '15~31') # no self cal on X band
+        #subbands=('0~15' '15~31')
         freqint="1024"
     fi
-   
-    #rm -r $msfile ; cp -r ${msfile}_backup ${msfile}
-    
-    xvfb-run /home/mridder/projects/def-heinke/mridder/CASA/casa-6.5.4-9-pipeline-2023.1.0.124/bin/casa -c restore_flags.py -f $msfile -v pre-selfcal --no-flag
 
-    apptainer exec -B /scratch /project/def-heinke/mridder/qsvir/polkat-0.0.2.sif wsclean -size $imsize $imsize -scale ${cellsize} -pol I -mgain 0.85 -niter 100000000 -auto-mask 5 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -name ${imname::-3}_base -data-column DATA -no-update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting $msfile
+    # Need to restore the flags for each MS file with CASA before running WSClean.
+    xvfb-run /path/to/casa -c restore_flags.py -f $msfile -v pre-selfcal --no-flag # xvfb-run allows CASA to run without needing a display on Graham/Cedar.
 
-    apptainer exec -B /scratch /project/def-heinke/mridder/qsvir/polkat-0.0.2.sif breizorro --fill-holes --dilate=1 --boxsize=50 --threshold=6.5 --outfile=${imname::-3}_mask.fits --restored-image=${imname::-3}_base-MFS-image.fits
-    
-    apptainer exec -B /scratch /project/def-heinke/mridder/qsvir/polkat-0.0.2.sif wsclean -size $imsize $imsize -scale ${cellsize} -pol IQUV -mgain 0.85 -niter 100000000 -auto-mask 3 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -join-polarizations -name ${imname::-3}_base -data-column DATA -update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting -fits-mask ${imname::-3}_mask.fits $msfile
+    # Making a "dirty" image in Stokes I
+    apptainer exec -B /scratch /path/to/wsclean/container wsclean -size $imsize $imsize -scale ${cellsize} -pol I -mgain 0.85 -niter 100000000 -auto-mask 5 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -name ${imname::-3}_base -data-column DATA -no-update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting $msfile
+
+    # Making a mask with the previous image.
+    apptainer exec -B /scratch /path/to/breizorro/container breizorro --fill-holes --dilate=1 --boxsize=50 --threshold=6.5 --outfile=${imname::-3}_mask.fits --restored-image=${imname::-3}_base-MFS-image.fits
+
+    # Making pre-self-cal images in Stokes Q, U, V, and I
+    apptainer exec -B /scratch /path/to/wsclean/container wsclean -size $imsize $imsize -scale ${cellsize} -pol IQUV -mgain 0.85 -niter 100000000 -auto-mask 3 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -join-polarizations -name ${imname::-3}_base -data-column DATA -update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting -fits-mask ${imname::-3}_mask.fits $msfile
  
     ###############################################
     # Run DI phase-self-calibration using CubiCal #
     ###############################################
-    
+
+    # IMPORTANT: the SNR at frequencies higher than ~3 GHz are not sufficient to run self-cal
     if [[ "$msfile" == *"_S"* ]]; then
         for i in "${subbands[@]}";do
-            apptainer exec -B /scratch /project/def-heinke/mridder/qsvir/wbc.sif gocubical ../parsets/DI_bb.parset --data-ms $msfile --out-dir ../CubiCal_output/DI_bb$i.cc --out-name DI_bb$i --sel-ddid $i --k-freq-int $freqint --data-freq-chunk $freqint
+            apptainer exec -B /scratch /path/to/cubical/container gocubical ../parsets/DI_bb.parset --data-ms $msfile --out-dir ../CubiCal_output/DI_bb$i.cc --out-name DI_bb$i --sel-ddid $i --k-freq-int $freqint --data-freq-chunk $freqint
         
         done
-    
-    apptainer exec -B /scratch /project/def-heinke/mridder/qsvir/polkat-0.0.2.sif wsclean -size $imsize $imsize -scale ${cellsize} -pol IQUV -mgain 0.85 -niter 10000000 -auto-mask 3 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -join-polarizations -name ${imname::-3}_scal -data-column CORRECTED_DATA -no-update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting -fits-mask ${imname::-3}_mask.fits $msfile
+
+    # Making post-self-cal images in Stokes Q, U, V, and I
+    apptainer exec -B /scratch /path/to/wsclean/container/ wsclean -size $imsize $imsize -scale ${cellsize} -pol IQUV -mgain 0.85 -niter 10000000 -auto-mask 3 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -join-polarizations -name ${imname::-3}_scal -data-column CORRECTED_DATA -no-update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting -fits-mask ${imname::-3}_mask.fits $msfile
     
     fi
-    
+
+    # Deleting unnecessary files
     rm ../images/*00*Q* ../images/*00*U*/ ../images/*-dirty* ../images/*-psf* *.log *.last *parmdb*
     
 done
 
+# Organizing the images
 mkdir ../images/C_images ../images/X_images ../images/S_images
 mv ../images/QSVir_S* ../images/S_images/.;mv ../images/QSVir_C* ../images/C_images/.;mv ../images/QSVir_X* ../images/X_images/.
