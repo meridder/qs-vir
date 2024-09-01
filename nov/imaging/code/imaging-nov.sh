@@ -47,7 +47,7 @@ for msfile in ../ms_files/*.ms;do
         channels=16 # set to the number of spectral windows in each band
         imsize=2480
         cellsize='0.97arcsec' # pixel sizes are set at the beam minor axis/5
-        subbands=('0~7') # used by CubiCal
+        subbands=('0~7' '8~15' '16~23' '24~31') # used by CubiCal
         freqint="512"
     fi
     
@@ -56,7 +56,7 @@ for msfile in ../ms_files/*.ms;do
         channels=32
         imsize=5000
         cellsize='0.48arcsec'
-        #subbands=('0~7' '8~15' '16~23' '24~31') 
+        subbands=('0~7' '8~15' '16~23' '24~31') 
         freqint="512"
     fi
     
@@ -65,8 +65,10 @@ for msfile in ../ms_files/*.ms;do
         channels=32
         imsize=6000
         cellsize='0.32arcsec'
-        #subbands=('0~15' '15~31')
+        subbands=('0~15' '15~31') # If the spectral windows are out of order (non-monotonic), use the two commented lines below this.
         freqint="1024"
+	#subbands=('0' '1' '2' '3' '4' '5' '6' '7' '8' '9' '10' '11' '12' '13' '14' '15' '16' '17' '18' '19' '20' '21' '22' '23' '24' '25' '26' '27' '28' '29' '30' '31')
+ 	#freqint="64"
     fi
 
     # Need to restore the flags for each MS file with CASA before running WSClean.
@@ -85,17 +87,17 @@ for msfile in ../ms_files/*.ms;do
     # Run DI phase-self-calibration using CubiCal #
     ###############################################
 
-    # IMPORTANT: the SNR at frequencies higher than ~3 GHz are not sufficient to run self-cal
-    if [[ "$msfile" == *"_S"* ]]; then
-        for i in "${subbands[@]}";do
-            apptainer exec -B /scratch /path/to/cubical/container gocubical ../parsets/DI_bb.parset --data-ms $msfile --out-dir ../CubiCal_output/DI_bb$i.cc --out-name DI_bb$i --sel-ddid $i --k-freq-int $freqint --data-freq-chunk $freqint
+    # IMPORTANT: the SNR in the QS Vir field are NOT SUFFICIENT for self-calibration. This should only be used for imaging the calibrators.
+    #if [[ "$msfile" == *"_S"* ]] || [[ "$msfile" == *"_C"* ]] || [[ "$msfile" == *"_X"* ]]; then
+    #    for i in "${subbands[@]}";do
+    #        apptainer exec -B /scratch /path/to/cubical/container gocubical ../parsets/DI_bb.parset --data-ms $msfile --out-dir ../CubiCal_output/DI_bb$i.cc --out-name DI_bb$i --sel-ddid $i --k-freq-int $freqint --data-freq-chunk $freqint
         
-        done
+    #    done
 
     # Making post-self-cal images in Stokes Q, U, V, and I
-    apptainer exec -B /scratch /path/to/wsclean/container/ wsclean -size $imsize $imsize -scale ${cellsize} -pol IQUV -mgain 0.85 -niter 10000000 -auto-mask 3 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -join-polarizations -name ${imname::-3}_scal -data-column CORRECTED_DATA -no-update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting -fits-mask ${imname::-3}_mask.fits $msfile
+    #apptainer exec -B /scratch /path/to/wsclean/container/ wsclean -size $imsize $imsize -scale ${cellsize} -pol IQUV -mgain 0.85 -niter 10000000 -auto-mask 3 -auto-threshold 1 -channels-out ${channels} -fit-spectral-pol 4 -join-channels -join-polarizations -name ${imname::-3}_scal -data-column CORRECTED_DATA -no-update-model-required -weight briggs 0.0 -gridder wgridder -parallel-gridding 16 -no-mf-weighting -fits-mask ${imname::-3}_mask.fits $msfile
     
-    fi
+    #fi
 
     # Deleting unnecessary files
     rm ../images/*00*Q* ../images/*00*U*/ ../images/*-dirty* ../images/*-psf* *.log *.last *parmdb*
