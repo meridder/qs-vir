@@ -1,4 +1,4 @@
-This repository contains the scripts necessary to calibrate and image VLA observations of QS Vir along with scripts to recreate the plots in Ridder et al. 2024. The data can be obtained from nrao.archive.edu.
+This repository contains the scripts necessary to calibrate and image VLA observations of QS Vir along with scripts to recreate the plots in Ridder et al. (in prep). The data can be obtained from nrao.archive.edu.
 
 The general procedure for producing images from this dataset are as follows:
 1. Download the MS files for all three epochs from the NRAO archive.
@@ -6,4 +6,4 @@ The general procedure for producing images from this dataset are as follows:
 3. Run the [CASA](https://casadocs.readthedocs.io/) 6.4.1-12 pipeline script with the epoch-specific flag files.
 4. Run the linear polarization calibration script on each epoch.
 5. Split the MS files to include only the QS Vir field and separate them into S, C, and X band.
-6. Run the imaging script (needs [WSClean](https://wsclean.readthedocs.io/), [CubiCal](https://cubical.readthedocs.io/), and [breizorro](https://github.com/ratt-ru/breizorro)).
+7. Run the imaging script (needs [WSClean](https://wsclean.readthedocs.io/), [CubiCal](https://cubical.readthedocs.io/), and [breizorro](https://github.com/ratt-ru/breizorro)).
