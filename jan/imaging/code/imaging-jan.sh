@@ -18,22 +18,25 @@
 # already above to be sufficient to image all the frequency bands in a few hours.
 
 echo "'''"
-cat imaging.sh
+cat imaging-jan.sh
 echo "'''"
 
 echo 'Loading modules...'
+module load StdEnv
 module load python
 module load apptainer
 
 unset APPTAINER_BIND
 
-echo 'Deleting old files...'
-
+echo 'Removing old files...'
 rm -rf ../images/* ../ms_files/*.tmp
-#rm -rf ../ms_files/*.tmp
 rm -rf ../CubiCal_output/DI_*
 rm -rf ../CubiCal_output/DD_*
+
+echo 'Starting gigantic for loop through all ms files...'
 for msfile in ../ms_files/*.ms;do
+
+    echo 'Cleaning $msfile...'
 
     # Define the image name    
     imname="${msfile/ms_files/images}"
