@@ -1,4 +1,4 @@
-This repository contains the scripts necessary to calibrate and image VLA observations of QS Vir along with scripts to recreate the plots in Ridder et al. (in prep). The data can be obtained from nrao.archive.edu.
+This repository contains the scripts necessary to calibrate and image VLA observations of QS Vir along with scripts to recreate the plots in Ridder et al. (2025). The data can be obtained from nrao.archive.edu.
 
 The structure of the files in this repository are organized by the month of the observation. Under each of the above directories is a directory for imaging and another for calibration. Steps 1 - 5 correspond to the scripts in under calibration/ and step 6 corresponds to the scripts under imaging/.
 
